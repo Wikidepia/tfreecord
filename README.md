@@ -9,6 +9,7 @@
 ```python
 import tfreecord
 
+writer = tfreecord.RecordWriter()
 feature = {
     'id': writer.int64_feature(759),
     'text': writer.bytes_feature("Now rides our knight".encode("utf-8")),
