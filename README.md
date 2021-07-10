@@ -2,6 +2,10 @@
 
 > Read & Write TFRecord without heavy Tensorflow.
 
+```bash
+pip3 install tfreecord
+```
+
 ## Example
 
 ### Write TFRecord
