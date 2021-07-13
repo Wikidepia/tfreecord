@@ -1,4 +1,5 @@
 import struct
+import warnings
 
 import crc32c
 import numpy as np
@@ -30,7 +31,8 @@ class RecordReader:
         return ret
 
     # From https://github.com/jongwook/tfrecord_lite
-    def read_from_tfrecord(self, filename):
+    def read_from_tfrecord(self, filename, skip_error=False):
+        i = 0
         with open(filename, "rb") as file_handle:
             while True:
                 # Read the header
@@ -42,6 +44,14 @@ class RecordReader:
 
                 # Read the crc32, which is 4 bytes, and disregard
                 crc_header_bytes = file_handle.read(4)
+                crc_header = struct.unpack("I", crc_header_bytes)
+
+                # Verify header with crc32 header
+                if mask_crc(crc32c.crc32c(header_str)) != crc_header[0]:
+                    if skip_error:
+                        warnings.warn(f"corrupted record at {i}")
+                    else:
+                        raise ValueError(f"corrupted record at {i}")
 
                 # The length of the header tells us how many bytes the Event
                 # string takes
@@ -52,6 +62,15 @@ class RecordReader:
                 # which we check for integrity. Sometimes, the last Event
                 # has no crc32, in which case we skip.
                 crc_event_bytes = file_handle.read(4)
+                crc_event = struct.unpack("I", crc_event_bytes)
+
+                # Verify event with crc32 event
+                if mask_crc(crc32c.crc32c(event_bytes)) != crc_event[0]:
+                    if skip_error:
+                        warnings.warn(f"corrupted record at {i}")
+                    else:
+                        raise ValueError(f"corrupted record at {i}")
+                i += 1
                 yield self.decode_example(event_bytes)
 
 
@@ -86,7 +105,7 @@ class RecordWriter:
         len_crc = mask_crc(crc32c.crc32c(data_len))
         len_crc = struct.pack("I", len_crc)
 
-        # Calculate data crc 
+        # Calculate data crc
         data_crc = mask_crc(crc32c.crc32c(data))
         data_crc = struct.pack("I", data_crc)
 
